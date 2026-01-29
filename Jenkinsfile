@@ -2,8 +2,13 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_REGISTRY = 'food-delivery-devsecops'
+        DOCKER_REGISTRY = 'your-registry.com'
         IMAGE_NAME = 'food-delivery'
+        SONAR_HOST = 'http://sonarqube:9000'
+    }
+
+    tools {
+        nodejs 'NodeJS-18'
     }
 
     stages {
@@ -16,7 +21,6 @@ pipeline {
                         returnStdout: true
                     ).trim()
                 }
-                echo "Checked out commit: ${env.GIT_COMMIT_SHORT}"
             }
         }
 
@@ -36,23 +40,38 @@ pipeline {
                         }
                     }
                 }
-                stage('Admin') {
-                    steps {
-                        dir('admin') {
-                            sh 'npm ci'
-                        }
-                    }
+            }
+        }
+
+        stage('🔐 SAST - SonarQube Analysis') {
+            steps {
+                withSonarQubeEnv('SonarQube') {
+                    sh '''
+                        sonar-scanner \
+                            -Dsonar.projectKey=food-delivery \
+                            -Dsonar.sources=backend/,frontend/src/ \
+                            -Dsonar.exclusions=**/node_modules/**,**/dist/** \
+                            -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info
+                    '''
                 }
             }
         }
 
-        stage('🛡️ Dependency Audit') {
+        stage('🔍 Quality Gate') {
+            steps {
+                timeout(time: 5, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('🛡️ Dependency Check') {
             parallel {
                 stage('Backend Audit') {
                     steps {
                         dir('backend') {
                             sh 'npm audit --audit-level=high --json > npm-audit-backend.json || true'
-                            archiveArtifacts artifacts: 'npm-audit-backend.json', allowEmptyArchive: true
+                            archiveArtifacts artifacts: 'npm-audit-backend.json'
                         }
                     }
                 }
@@ -60,16 +79,19 @@ pipeline {
                     steps {
                         dir('frontend') {
                             sh 'npm audit --audit-level=high --json > npm-audit-frontend.json || true'
-                            archiveArtifacts artifacts: 'npm-audit-frontend.json', allowEmptyArchive: true
+                            archiveArtifacts artifacts: 'npm-audit-frontend.json'
                         }
                     }
                 }
-                stage('Admin Audit') {
+                stage('OWASP Check') {
                     steps {
-                        dir('admin') {
-                            sh 'npm audit --audit-level=high --json > npm-audit-admin.json || true'
-                            archiveArtifacts artifacts: 'npm-audit-admin.json', allowEmptyArchive: true
-                        }
+                        dependencyCheck additionalArguments: '''
+                            --scan .
+                            --format HTML
+                            --format JSON
+                            --prettyPrint
+                        ''', odcInstallation: 'OWASP-DC'
+                        dependencyCheckPublisher pattern: 'dependency-check-report.json'
                     }
                 }
             }
@@ -80,14 +102,23 @@ pipeline {
                 stage('Backend Tests') {
                     steps {
                         dir('backend') {
-                            sh 'npm test -- --coverage --coverageReporters=lcov || echo "Tests completed with some failures"'
+                            sh 'npm test -- --coverage --coverageReporters=lcov'
+                        }
+                    }
+                    post {
+                        always {
+                            publishHTML([
+                                reportDir: 'backend/coverage/lcov-report',
+                                reportFiles: 'index.html',
+                                reportName: 'Backend Coverage'
+                            ])
                         }
                     }
                 }
                 stage('Frontend Tests') {
                     steps {
                         dir('frontend') {
-                            sh 'npm test -- --coverage --watchAll=false || echo "No tests configured or tests completed"'
+                            sh 'npm test -- --coverage --watchAll=false'
                         }
                     }
                 }
@@ -97,9 +128,8 @@ pipeline {
         stage('🐳 Build Docker Images') {
             steps {
                 script {
-                    sh "docker build -t ${DOCKER_REGISTRY}-backend:${GIT_COMMIT_SHORT} ./backend"
-                    sh "docker build -t ${DOCKER_REGISTRY}-frontend:${GIT_COMMIT_SHORT} ./frontend"
-                    sh "docker build -t ${DOCKER_REGISTRY}-admin:${GIT_COMMIT_SHORT} ./admin"
+                    docker.build("${DOCKER_REGISTRY}/${IMAGE_NAME}-backend:${GIT_COMMIT_SHORT}", "./backend")
+                    docker.build("${DOCKER_REGISTRY}/${IMAGE_NAME}-frontend:${GIT_COMMIT_SHORT}", "./frontend")
                 }
             }
         }
@@ -107,39 +137,66 @@ pipeline {
         stage('🔒 Container Security Scan') {
             steps {
                 sh '''
-                    # Install Trivy if not available
-                    which trivy || (curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin) || true
+                    # Install Trivy
+                    curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin
 
-                    # Scan images if trivy is available
-                    if command -v trivy &> /dev/null; then
-                        trivy image --severity HIGH,CRITICAL \
-                            --format json \
-                            --output trivy-backend.json \
-                            ${DOCKER_REGISTRY}-backend:${GIT_COMMIT_SHORT} || true
-                        echo "Container scan completed"
-                    else
-                        echo "Trivy not available, skipping container scan"
-                    fi
+                    # Scan Backend Image
+                    trivy image --severity HIGH,CRITICAL \
+                        --format json \
+                        --output trivy-backend.json \
+                        ${DOCKER_REGISTRY}/${IMAGE_NAME}-backend:${GIT_COMMIT_SHORT}
+
+                    # Scan Frontend Image
+                    trivy image --severity HIGH,CRITICAL \
+                        --format json \
+                        --output trivy-frontend.json \
+                        ${DOCKER_REGISTRY}/${IMAGE_NAME}-frontend:${GIT_COMMIT_SHORT}
                 '''
-                archiveArtifacts artifacts: 'trivy-*.json', allowEmptyArchive: true
+                archiveArtifacts artifacts: 'trivy-*.json'
             }
         }
 
-        stage('📋 Pipeline Summary') {
+        stage('🚀 Deploy to Staging') {
+            when {
+                branch 'develop'
+            }
             steps {
                 sh '''
-                    echo "======================================"
-                    echo "  DevSecOps Pipeline Summary"
-                    echo "======================================"
-                    echo ""
-                    echo "✅ Dependencies installed (Backend, Frontend, Admin)"
-                    echo "✅ Security audit completed"
-                    echo "✅ Unit tests executed"
-                    echo "✅ Docker images built"
-                    echo "✅ Container security scan attempted"
-                    echo ""
-                    echo "Built images:"
-                    docker images | grep ${DOCKER_REGISTRY} || echo "Images built"
+                    docker-compose -f docker-compose.staging.yml down
+                    docker-compose -f docker-compose.staging.yml up -d
+                '''
+            }
+        }
+
+        stage('🎯 DAST - OWASP ZAP') {
+            when {
+                branch 'develop'
+            }
+            steps {
+                sh '''
+                    docker run --rm -v $(pwd):/zap/wrk:rw \
+                        -t owasp/zap2docker-stable zap-baseline.py \
+                        -t http://staging-url:80 \
+                        -r zap-report.html \
+                        -J zap-report.json || true
+                '''
+                publishHTML([
+                    reportDir: '.',
+                    reportFiles: 'zap-report.html',
+                    reportName: 'OWASP ZAP Report'
+                ])
+            }
+        }
+
+        stage('🏭 Deploy to Production') {
+            when {
+                branch 'main'
+            }
+            steps {
+                input message: 'Deploy to Production?', ok: 'Deploy'
+                sh '''
+                    docker-compose -f docker-compose.prod.yml down
+                    docker-compose -f docker-compose.prod.yml up -d
                 '''
             }
         }
@@ -147,13 +204,17 @@ pipeline {
 
     post {
         always {
-            echo 'Pipeline finished!'
+            cleanWs()
         }
         success {
-            echo '✅ Pipeline SUCCESS!'
+            slackSend channel: '#devops',
+                color: 'good',
+                message: "✅ Pipeline SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
         failure {
-            echo '❌ Pipeline FAILED!'
+            slackSend channel: '#devops',
+                color: 'danger',
+                message: "❌ Pipeline FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
     }
 }
