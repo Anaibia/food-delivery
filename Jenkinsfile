@@ -108,6 +108,9 @@ pipeline {
                     post {
                         always {
                             publishHTML([
+                                allowMissing: true,
+                                alwaysLinkToLastBuild: true,
+                                keepAll: true,
                                 reportDir: 'backend/coverage/lcov-report',
                                 reportFiles: 'index.html',
                                 reportName: 'Backend Coverage'
@@ -181,6 +184,9 @@ pipeline {
                         -J zap-report.json || true
                 '''
                 publishHTML([
+                    allowMissing: true,
+                    alwaysLinkToLastBuild: true,
+                    keepAll: true,
                     reportDir: '.',
                     reportFiles: 'zap-report.html',
                     reportName: 'OWASP ZAP Report'
