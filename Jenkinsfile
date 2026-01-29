@@ -7,6 +7,8 @@ pipeline {
         SONAR_HOST = 'http://sonarqube:9000'
     }
 
+    // Note: NodeJS tool requires working internet connection for auto-install
+    // If auto-install fails, ensure Node.js is pre-installed in Jenkins container
     tools {
         nodejs 'NodeJS-18'
     }
@@ -210,17 +212,23 @@ pipeline {
 
     post {
         always {
-            cleanWs()
+            node('') {
+                cleanWs()
+            }
         }
         success {
-            slackSend channel: '#devops',
-                color: 'good',
-                message: "✅ Pipeline SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+            echo '✅ Pipeline SUCCESS!'
+            // Uncomment when Slack is configured with credentials
+            // slackSend channel: '#devops',
+            //     color: 'good',
+            //     message: "✅ Pipeline SUCCESS: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
         failure {
-            slackSend channel: '#devops',
-                color: 'danger',
-                message: "❌ Pipeline FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
+            echo '❌ Pipeline FAILED!'
+            // Uncomment when Slack is configured with credentials
+            // slackSend channel: '#devops',
+            //     color: 'danger',
+            //     message: "❌ Pipeline FAILED: ${env.JOB_NAME} #${env.BUILD_NUMBER}"
         }
     }
 }
