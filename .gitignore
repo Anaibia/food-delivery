@@ -1,0 +1,50 @@
+# Ignorer les fichiers d'environnement
+.env
+.env.local
+.env.production
+
+# Node modules
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+*/dist/
+*/build/
+
+# Logs
+*.log
+npm-debug.log*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage/
+*/coverage/
+
+# Test reports
+reports/
+*/reports/
+
+# Security scan reports
+trivy-*.json
+zap-*.html
+zap-*.json
+npm-audit-*.json
+dependency-check-report.*
+
+# Docker
+.docker/
+
+# Temporary files
+tmp/
+temp/

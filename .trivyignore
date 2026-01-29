@@ -1,0 +1,11 @@
+# Trivy Ignore File
+# Add CVE IDs to ignore with justification
+
+# Example format:
+# CVE-YYYY-XXXXX  # Justification for ignoring
+
+# False positives - not applicable to our use case
+# CVE-2023-XXXXX  # This vulnerability only affects feature X which we don't use
+
+# Accepted risks - tracked in security backlog
+# CVE-2023-YYYYY  # Accepted risk, mitigation in place, tracked in JIRA-123
