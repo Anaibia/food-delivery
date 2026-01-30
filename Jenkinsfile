@@ -16,7 +16,7 @@ pipeline {
     stages {
         stage('🔍 Checkout') {
             steps {
-                checkout scm
+                git branch: 'main', url: 'git@github.com:Anaibia/food-delivery.git'
                 script {
                     env.GIT_COMMIT_SHORT = sh(
                         script: "git rev-parse --short HEAD",
