@@ -13,11 +13,9 @@ pipeline {
     SONAR_HOST = 'http://sonarqube:9000'
     // Helper to get the Jenkins container ID dynamically
     JENKINS_CONTAINER = sh(script: 'docker ps -qf "name=jenkins"', returnStdout: true).trim()
-    WORKSPACE_PATH = "/var/jenkins_home/workspace/food-delivery-devsecops" 
+    WORKSPACE_PATH = "/var/jenkins_home/workspace/Food-Delivery-Pipeline" 
   }
 
-  // Note: NodeJS tool usually requires a node with local installation
-  // or a different agent strategy. Keeping it for now as per "keep other stages the same"
   tools {
     nodejs 'NodeJS-18'
   }
