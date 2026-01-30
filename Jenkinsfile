@@ -24,13 +24,13 @@ pipeline {
     }
 
     stage('📦 Install Dependencies') {
-      agent {
-        docker { 
-          image 'node:18-alpine' 
-        }
-      }
       parallel {
         stage('Backend') {
+          agent {
+            docker { 
+              image 'node:18-alpine' 
+            }
+          }
           steps {
             dir('backend') {
               sh 'npm ci'
@@ -38,6 +38,11 @@ pipeline {
           }
         }
         stage('Frontend') {
+          agent {
+            docker { 
+              image 'node:18-alpine' 
+            }
+          }
           steps {
             dir('frontend') {
               sh 'npm ci'
@@ -72,9 +77,9 @@ pipeline {
     }
 
     stage('🛡️ Dependency Check') {
-      agent any
       parallel {
         stage('Backend Audit') {
+          agent any
           steps {
             dir('backend') {
               sh 'npm audit --audit-level=high --json > npm-audit-backend.json || true'
@@ -83,6 +88,7 @@ pipeline {
           }
         }
         stage('Frontend Audit') {
+          agent any
           steps {
             dir('frontend') {
               sh 'npm audit --audit-level=high --json > npm-audit-frontend.json || true'
@@ -91,6 +97,7 @@ pipeline {
           }
         }
         stage('OWASP Check') {
+          agent any
           steps {
             dependencyCheck additionalArguments: '''
               --scan .
@@ -105,13 +112,13 @@ pipeline {
     }
 
     stage('🧪 Unit Tests') {
-      agent {
-        docker { 
-          image 'node:18-alpine' 
-        }
-      }
       parallel {
         stage('Backend Tests') {
+          agent {
+            docker { 
+              image 'node:18-alpine' 
+            }
+          }
           steps {
             dir('backend') {
               sh 'npm test -- --coverage --coverageReporters=lcov'
@@ -131,6 +138,11 @@ pipeline {
           }
         }
         stage('Frontend Tests') {
+          agent {
+            docker { 
+              image 'node:18-alpine' 
+            }
+          }
           steps {
             dir('frontend') {
               sh 'npm test -- --coverage --watchAll=false'
