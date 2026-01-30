@@ -1,30 +1,39 @@
 pipeline {
-    agent any
-
-    environment {
-        DOCKER_REGISTRY = 'your-registry.com'
-        IMAGE_NAME = 'food-delivery'
-        SONAR_HOST = 'http://sonarqube:9000'
+  agent {
+    docker {
+      image 'docker:27-cli'
+      args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
     }
+  }
 
-    // Note: NodeJS tool requires working internet connection for auto-install
-    // If auto-install fails, ensure Node.js is pre-installed in Jenkins container
-    tools {
-        nodejs 'NodeJS-18'
-    }
+  environment {
+    DOCKER_BUILDKIT = "1"
+    DOCKER_REGISTRY = 'your-registry.com'
+    IMAGE_NAME = 'food-delivery'
+    SONAR_HOST = 'http://sonarqube:9000'
+    // Helper to get the Jenkins container ID dynamically
+    JENKINS_CONTAINER = sh(script: 'docker ps -qf "name=jenkins"', returnStdout: true).trim()
+    WORKSPACE_PATH = "/var/jenkins_home/workspace/food-delivery-devsecops" 
+  }
 
-    stages {
-        stage('🔍 Checkout') {
-            steps {
-                git branch: 'main', url: 'git@github.com:Anaibia/food-delivery.git'
-                script {
-                    env.GIT_COMMIT_SHORT = sh(
-                        script: "git rev-parse --short HEAD",
-                        returnStdout: true
-                    ).trim()
-                }
-            }
+  // Note: NodeJS tool usually requires a node with local installation
+  // or a different agent strategy. Keeping it for now as per "keep other stages the same"
+  tools {
+    nodejs 'NodeJS-18'
+  }
+
+  stages {
+    stage('🔍 Checkout') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_COMMIT_SHORT = sh(
+            script: "git rev-parse --short HEAD",
+            returnStdout: true
+          ).trim()
         }
+      }
+    }
 
         stage('📦 Install Dependencies') {
             parallel {
