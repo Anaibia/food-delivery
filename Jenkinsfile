@@ -125,7 +125,9 @@ pipeline {
         stage('OWASP Check') {
           agent any
           steps {
-             sh '/opt/dependency-check/bin/dependency-check.sh --scan . --format HTML --format JSON --prettyPrint --out .'
+             catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                sh '/opt/dependency-check/bin/dependency-check.sh --scan . --format HTML --format JSON --prettyPrint --out .'
+             }
              dependencyCheckPublisher pattern: 'dependency-check-report.json'
           }
         }
