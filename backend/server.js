@@ -52,7 +52,8 @@ app.use((req, res, next) => {
 });
 
 // DB connection
-connectDB();
+// DB connection moved to start-up block
+// connectDB();
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -82,6 +83,7 @@ app.get("/", (req, res) => {
 
 // Start server only if not in test mode
 if (process.env.NODE_ENV !== 'test') {
+  connectDB();
   app.listen(port, () => {
     console.log(`Server Started on port: ${port}`);
   });

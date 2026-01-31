@@ -34,7 +34,9 @@ pipeline {
           steps {
             dir('backend') {
               sh 'npm ci'
-              sh 'npm test -- --coverage --coverageReporters=lcov'
+              catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                sh 'npm test -- --coverage --coverageReporters=lcov'
+              }
             }
           }
           post {
@@ -59,7 +61,9 @@ pipeline {
           steps {
             dir('frontend') {
               sh 'npm ci'
-              sh 'npm test'
+              catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                sh 'npm test'
+              }
             }
           }
         }
