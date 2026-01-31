@@ -1,3 +1,4 @@
+import { jest, describe, test, expect, beforeEach, afterEach } from '@jest/globals';
 import jwt from 'jsonwebtoken';
 import authMiddleware from '../middleware/auth.js';
 
