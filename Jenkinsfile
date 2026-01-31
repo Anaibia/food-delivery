@@ -97,7 +97,11 @@ pipeline {
     stage('🛡️ Dependency Check') {
       parallel {
         stage('Backend Audit') {
-          agent any
+          agent {
+            docker {
+              image 'node:18-alpine'
+            }
+          }
           steps {
             dir('backend') {
               sh 'npm audit --audit-level=high --json > npm-audit-backend.json || true'
@@ -106,7 +110,11 @@ pipeline {
           }
         }
         stage('Frontend Audit') {
-          agent any
+          agent {
+            docker {
+              image 'node:18-alpine'
+            }
+          }
           steps {
             dir('frontend') {
               sh 'npm audit --audit-level=high --json > npm-audit-frontend.json || true'
@@ -117,13 +125,8 @@ pipeline {
         stage('OWASP Check') {
           agent any
           steps {
-            dependencyCheck additionalArguments: '''
-              --scan .
-              --format HTML
-              --format JSON
-              --prettyPrint
-            ''', odcInstallation: 'OWASP-DC'
-            dependencyCheckPublisher pattern: 'dependency-check-report.json'
+             sh '/opt/dependency-check/bin/dependency-check.sh --scan . --format HTML --format JSON --prettyPrint --out .'
+             dependencyCheckPublisher pattern: 'dependency-check-report.json'
           }
         }
       }

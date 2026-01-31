@@ -24,5 +24,12 @@ RUN curl -o /tmp/sonar-scanner.zip -L https://binaries.sonarsource.com/Distribut
     ln -s /opt/sonar-scanner/bin/sonar-scanner /usr/local/bin/sonar-scanner && \
     rm /tmp/sonar-scanner.zip
 
+# Install OWASP Dependency Check
+ARG DC_VERSION=9.0.9
+RUN curl -o /tmp/dependency-check.zip -L https://github.com/jeremylong/DependencyCheck/releases/download/v${DC_VERSION}/dependency-check-${DC_VERSION}-release.zip && \
+    unzip -o /tmp/dependency-check.zip -d /opt/ && \
+    chmod +x /opt/dependency-check/bin/dependency-check.sh && \
+    rm /tmp/dependency-check.zip
+
 
 USER jenkins
