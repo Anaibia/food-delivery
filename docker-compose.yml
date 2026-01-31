@@ -32,6 +32,8 @@ services:
       - JWT_SECRET=${JWT_SECRET}
       - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
       - PORT=4000
+    ports:
+      - "4000:4000"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -118,7 +120,9 @@ services:
 
   # Jenkins for CI/CD
   jenkins:
-    image: jenkins/jenkins:lts
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
     container_name: food-jenkins
     user: root
     ports:

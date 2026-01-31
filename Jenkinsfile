@@ -223,7 +223,7 @@ pipeline {
   post {
     always {
       node('') {
-        cleanWs()
+        deleteDir()
       }
     }
     success {
